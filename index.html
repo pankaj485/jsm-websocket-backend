@@ -20,6 +20,16 @@
         </div>
       </div>
 
+      <div class="input-group">
+        <input
+          type="text"
+          id="ws-url"
+          value="ws://localhost:8080"
+          placeholder="ws://localhost:8080"
+        />
+        <button id="connect-btn">Connect</button>
+      </div>
+
       <form id="message-form" class="input-group">
         <input
           type="text"
@@ -43,37 +53,76 @@
     const log = document.getElementById("log");
     const messageInput = document.getElementById("message-input");
     const form = document.getElementById("message-form");
-    const WS_ADDR = "ws://localhost:8080";
+    const wsUrlInput = document.getElementById("ws-url");
+    const connectBtn = document.getElementById("connect-btn");
 
-    // Initiate WebSocket connection
-    const socket = new WebSocket(WS_ADDR);
+    let socket = null;
 
     const appendLog = (label, message) => {
       const entry = `${new Date().toLocaleTimeString()} [${label}] ${message}\n`;
       log.textContent = entry + log.textContent;
     };
 
-    socket.addEventListener("open", () => {
-      statusEl.classList.remove("status-off");
-      statusEl.classList.add("status-on");
-      statusText.textContent = `Online (${WS_ADDR})`;
-      appendLog("System", "WebSocket connection established");
-    });
+    const validateWsUrl = (url) => {
+      const pattern = /^(ws|wss):\/\/[^ "]+$/;
+      return pattern.test(url);
+    };
 
-    socket.addEventListener("close", () => {
-      statusEl.classList.remove("status-on");
-      statusEl.classList.add("status-off");
-      statusText.textContent = `Offline`;
-      appendLog("System", "WebSocket connection closed");
-    });
+    const connect = () => {
+      const wsAddr = wsUrlInput.value;
+
+      if (!validateWsUrl(wsAddr)) {
+        alert("Invalid WebSocket URL. Must start with ws:// or wss://");
+        return;
+      }
+
+      if (socket) {
+        socket.close();
+      }
+
+      try {
+        socket = new WebSocket(wsAddr);
+
+        socket.addEventListener("open", () => {
+          statusEl.classList.remove("status-off");
+          statusEl.classList.add("status-on");
+          statusText.textContent = `Online (${wsAddr})`;
+          appendLog("System", "WebSocket connection established");
+        });
+
+        socket.addEventListener("close", () => {
+          statusEl.classList.remove("status-on");
+          statusEl.classList.add("status-off");
+          statusText.textContent = `Offline`;
+          appendLog("System", "WebSocket connection closed");
+        });
+
+        socket.addEventListener("message", (event) => {
+          console.log(event);
+          appendLog("Server", event.data);
+        });
+
+        socket.addEventListener("error", (error) => {
+          appendLog("Error", "WebSocket error occurred");
+          console.error("WebSocket Error:", error);
+        });
+      } catch (error) {
+        appendLog("Error", `Failed to connect: ${error.message}`);
+      }
+    };
+
+    connectBtn.addEventListener("click", connect);
+
+    // Initial connection
+    connect();
 
     // form submit handler
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
-      if (socket.readyState !== WebSocket.OPEN) {
-        appendLog("ERROR", "Connection is not open. Please try again later.");
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        appendLog("ERROR", "Connection is not open. Please connect first.");
       } else {
         const message = messageInput.value;
         socket.send(message);
@@ -81,11 +130,6 @@
       }
 
       messageInput.value = "";
-    });
-
-    socket.addEventListener("message", (event) => {
-      console.log(event);
-      appendLog("Server", event.data);
     });
   </script>
 </html>
