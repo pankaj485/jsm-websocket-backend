@@ -14,12 +14,8 @@ wss.on("connection", (socket, request) => {
     wss.clients.forEach((client) => {
       const isConnectionOpen = client.readyState === WebSocket.OPEN;
       if (isConnectionOpen) {
-        client.send(
-          JSON.stringify({
-            success: true,
-            message: data,
-          }),
-        );
+        const response = JSON.stringify({ user_message: data });
+        client.send(response);
       }
     });
   });
